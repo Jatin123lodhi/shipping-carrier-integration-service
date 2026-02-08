@@ -186,8 +186,8 @@ describe('UPS Authentication', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.severity).toBe(ErrorSeverity.AUTH_ERROR);
-        expect(result.error.message).toContain('missing access_token');
+        expect(result.error.severity).toBe(ErrorSeverity.VALIDATION_ERROR);
+        expect(result.error.message).toContain('access_token');
       }
     });
   });

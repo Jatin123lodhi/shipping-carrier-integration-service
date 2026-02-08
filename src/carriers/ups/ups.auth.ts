@@ -7,15 +7,19 @@
  * - Transparent refresh on expiry
  */
 
-import type { UpsToken, UpsTokenResult, UpsTokenResponse } from './ups.types';
+import type { UpsToken, UpsTokenResult } from './ups.types';
 import type { CarrierConfig } from '../../config/types';
 import {
-  createAuthError,
+  createValidationError,
   httpErrorToCarrierError,
   networkErrorToCarrierError,
   jsonParseErrorToCarrierError,
   unknownErrorToCarrierError,
 } from '../../domain/errors';
+import {
+  validateUpsTokenResponseSafe,
+} from './ups.validation';
+import { formatValidationError } from '../../domain/validation';
 
 /**
  * UPS Authentication Service
@@ -100,13 +104,13 @@ export class UpsAuthImpl implements UpsAuth {
         };
       }
 
-      // Parse response
-      let tokenResponse: UpsTokenResponse;
+      // Parse and validate response
+      let parsedBody: unknown;
       try {
         if (typeof response.body === 'string') {
-          tokenResponse = JSON.parse(response.body) as UpsTokenResponse;
+          parsedBody = JSON.parse(response.body);
         } else {
-          tokenResponse = response.body as UpsTokenResponse;
+          parsedBody = response.body;
         }
       } catch (error) {
         return {
@@ -119,17 +123,24 @@ export class UpsAuthImpl implements UpsAuth {
         };
       }
 
-      // Validate required fields
-      if (!tokenResponse.access_token || !tokenResponse.token_type) {
+      // Validate response structure
+      const validationResult = validateUpsTokenResponseSafe(parsedBody);
+      if (!validationResult.success) {
+        const errorMessage = formatValidationError(validationResult.error);
         return {
           success: false,
-          error: createAuthError(
-            'Invalid token response: missing access_token or token_type',
-            'ups',
-            response.status
+          error: createValidationError(
+            `Invalid UPS token response structure: ${errorMessage}`,
+            {
+              validationErrors: validationResult.error.errors,
+              httpStatus: response.status,
+              originalResponse: parsedBody,
+            }
           ),
         };
       }
+
+      const tokenResponse = validationResult.data;
 
       // Calculate expiration
       const expiresIn = tokenResponse.expires_in || 3600;

@@ -1,11 +1,3 @@
-/**
- * UPS Service
- * 
- * Main service implementation for UPS carrier integration.
- * Implements the Carrier interface and coordinates authentication,
- * API requests, and response mapping.
- */
-
 import type {
   RateRequest,
   RateResponse,
@@ -23,18 +15,6 @@ import type { UpsAuth } from './ups.auth';
 import type { UpsClient } from './ups.client';
 import type { UpsMapper } from './ups.mapper';
 
-/**
- * UPS Carrier Service
- * 
- * Implements the Carrier interface for UPS shipping rate requests.
- * Handles the complete flow:
- * 1. Input validation
- * 2. Authentication (OAuth token acquisition/refresh)
- * 3. Request transformation (domain -> UPS API format)
- * 4. API call execution
- * 5. Response transformation (UPS API -> domain format)
- * 6. Error handling
- */
 export class UpsService implements Carrier {
   readonly carrierId = 'ups';
 
@@ -43,10 +23,7 @@ export class UpsService implements Carrier {
     private readonly client: UpsClient,
     private readonly mapper: UpsMapper
   ) {}
-
-  /**
-   * Get shipping rates from UPS
-   */
+ 
   async getRates(request: RateRequest): Promise<Result<RateResponse, CarrierError>> {
     try {
       // Step 1: Validate input before making any external calls
@@ -108,19 +85,13 @@ export class UpsService implements Carrier {
       };
     }
   }
-
-  /**
-   * Check if UPS supports a specific operation
-   */
+  
   supportsOperation(operation: CarrierOperation): boolean {
     // Currently only RATE is supported
     // Future operations (LABEL, TRACKING, etc.) can be added here
     return operation === CarrierOperation.RATE;
   }
 
-  /**
-   * Get UPS display name
-   */
   getDisplayName(): string {
     return 'UPS';
   }

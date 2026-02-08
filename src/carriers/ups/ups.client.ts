@@ -6,17 +6,21 @@
 
 import type {
   UpsRateRequest,
-  UpsRateResponse,
   UpsRateApiResult,
   UpsToken,
 } from './ups.types';
 import type { CarrierConfig } from '../../config/types';
 import {
+  createValidationError,
   httpErrorToCarrierError,
   networkErrorToCarrierError,
   jsonParseErrorToCarrierError,
   unknownErrorToCarrierError,
 } from '../../domain/errors';
+import {
+  validateUpsRateResponseSafe,
+} from './ups.validation';
+import { formatValidationError } from '../../domain/validation';
 
 export interface UpsClient {
   getRates(request: UpsRateRequest, token: UpsToken): Promise<UpsRateApiResult>;
@@ -73,13 +77,13 @@ export class UpsClientImpl implements UpsClient {
         };
       }
 
-      // Parse response
-      let rateResponse: UpsRateResponse;
+      // Parse and validate response
+      let parsedBody: unknown;
       try {
         if (typeof response.body === 'string') {
-          rateResponse = JSON.parse(response.body) as UpsRateResponse;
+          parsedBody = JSON.parse(response.body);
         } else {
-          rateResponse = response.body as UpsRateResponse;
+          parsedBody = response.body;
         }
       } catch (error) {
         return {
@@ -92,7 +96,24 @@ export class UpsClientImpl implements UpsClient {
         };
       }
 
-      return { success: true, data: rateResponse };
+      // Validate response structure
+      const validationResult = validateUpsRateResponseSafe(parsedBody);
+      if (!validationResult.success) {
+        const errorMessage = formatValidationError(validationResult.error);
+        return {
+          success: false,
+          error: createValidationError(
+            `Invalid UPS rate response structure: ${errorMessage}`,
+            {
+              validationErrors: validationResult.error.errors,
+              httpStatus: response.status,
+              originalResponse: parsedBody,
+            }
+          ),
+        };
+      }
+
+      return { success: true, data: validationResult.data };
     } catch (error) {
       // Handle network/timeout errors
       if (error instanceof Error) {
